@@ -2,83 +2,110 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Entrenador Clúster - Dominadas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Entrenador de Gimnasia v1.1.0</title>
   <style>
+    :root {
+      --bg-dark: #000;
+      --bg-panel: rgba(0, 0, 0, 0.4);
+      --bg-menu: rgba(30, 30, 30, 0.6);
+      --glass-blur: blur(16px);
+      --border-glass: 1px solid rgba(255, 255, 255, 0.1);
+      --color-primary: #2563eb;
+      --color-success: #4ade80;
+      --color-warning: #fbbf24;
+      --color-danger: #f87171;
+      --text-main: #fff;
+      --text-muted: rgba(255, 255, 255, 0.4);
+    }
+
     body {
-      margin: 0; background: #000; color: #fff;
+      margin: 0; background: var(--bg-dark); color: var(--text-main);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100vh; width: 100vw; overflow: hidden;
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
     }
     
-    #container {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none;
-    }
-    
-    video, canvas {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; transform: scaleX(-1);
-    }
-    
-    #ui {
-      position: absolute; top: 40px; left: 20px; right: 20px; z-index: 10;
-      background: rgba(0, 0, 0, 0.4); 
-      backdrop-filter: blur(16px); 
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1); 
-      padding: 20px; border-radius: 16px;
-      display: flex; flex-direction: column; gap: 12px; 
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-    }
-    
-    .stats { display: flex; justify-content: space-between; font-size: 16px; font-weight: 600; color: #eee; }
-    .status-text { font-size: 20px; color: #4ade80; text-align: center; font-weight: bold; }
-    .timer-text { font-size: 40px; color: #fbbf24; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; margin: -10px 0;}
-    
+    /* Configuración Menú Principal */
     #menu {
-      background: rgba(30, 30, 30, 0.6); 
-      backdrop-filter: blur(16px); 
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1); 
-      padding: 32px 24px; border-radius: 20px; 
-      width: 85%; max-width: 320px; 
-      display: flex; flex-direction: column; gap: 20px; z-index: 20;
+      background: var(--bg-menu); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      border: var(--border-glass); padding: 32px 24px; border-radius: 20px; 
+      width: 85%; max-width: 320px; display: flex; flex-direction: column; gap: 16px; z-index: 20;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
-    
     #menu h2 { margin: 0 0 8px 0; text-align: center; font-size: 22px; font-weight: 600; }
-    label { display: flex; flex-direction: column; font-size: 14px; color: #ddd; gap: 6px; }
     
-    select, button {
+    .exercise-selector { display: flex; gap: 10px; margin-bottom: 10px; }
+    .ex-btn { 
+      flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: var(--text-muted); cursor: pointer; text-align: center; font-weight: 500; font-size: 14px;
+    }
+    .ex-btn.active { background: rgba(37, 99, 235, 0.3); border-color: var(--color-primary); color: #fff; }
+
+    .config-group { display: flex; flex-direction: column; gap: 16px; }
+    .hidden { display: none !important; }
+    
+    label { display: flex; flex-direction: column; font-size: 13px; color: #ddd; gap: 6px; }
+    
+    select, .action-btn {
       padding: 14px; font-size: 16px; border-radius: 12px; border: none;
       background: rgba(255, 255, 255, 0.1); color: #fff; outline: none;
-      -webkit-appearance: none; appearance: none;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      -webkit-appearance: none; appearance: none; border: var(--border-glass);
     }
     
-    button { 
-      background: rgba(37, 99, 235, 0.8); 
-      font-weight: 600; cursor: pointer; margin-top: 12px; 
-    }
-    button:active { background: rgba(29, 78, 216, 0.9); }
+    .action-btn { background: var(--color-primary); font-weight: 600; cursor: pointer; margin-top: 12px; transition: background 0.2s; }
+    .action-btn:active { background: #1d4ed8; }
 
-    /* Botón de terminar sesión específico */
-    #end-session-btn {
-      background: rgba(239, 68, 68, 0.5);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      padding: 10px;
-      font-size: 14px;
-      margin-top: 5px;
+    /* UI Dominadas (Cámara) */
+    #pullup-container {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 10;
     }
-    #end-session-btn:active {
-      background: rgba(185, 28, 28, 0.7);
+    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    
+    /* UI Flexiones (Táctil) */
+    #pushup-container {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 10;
+      background: #050505; flex-direction: column; align-items: center; justify-content: flex-start;
     }
+    
+    /* Panel Glassmorphism Común para UI in-workout */
+    .workout-panel {
+      position: absolute; top: 50px; left: 20px; right: 20px; z-index: 15;
+      background: var(--bg-panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      border: var(--border-glass); padding: 20px; border-radius: 16px;
+      display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stats-row { display: flex; justify-content: space-between; font-size: 14px; color: #eee; }
+    .main-status { font-size: 22px; text-align: center; font-weight: bold; }
+    .big-timer { font-size: 48px; color: var(--color-warning); text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; margin: 10px 0;}
+    
+    /* Barra Deslizante para Flexiones */
+    #pushup-slider-container { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; margin-top: 10px; display: none;}
+    #pushup-slider-bar { width: 100%; height: 100%; background: var(--color-primary); transition: width linear; transform-origin: left;}
+    
+    /* Área táctil transparente para flexiones */
+    #nose-touch-area {
+      position: absolute; bottom: 0; left: 0; width: 100%; height: 60%; 
+      background: transparent; z-index: 30; cursor: pointer;
+    }
+    
+    /* Botones de control in-workout */
+    .control-btn { font-size: 14px; padding: 10px; margin-top: 5px;}
+    .terminate-btn { background: rgba(239, 68, 68, 0.3); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--color-danger); }
+    .terminate-btn:active { background: rgba(239, 68, 68, 0.5); }
+    .done-btn { background: rgba(37, 99, 235, 0.3); border: 1px solid rgba(37, 99, 235, 0.2); }
 
-    #footer {
-      position: absolute; bottom: 20px; width: 100%; text-align: center;
-      font-size: 12px; color: rgba(255, 255, 255, 0.4); z-index: 30; pointer-events: none;
-    }
+    /* Pie de página */
+    #footer { position: absolute; bottom: 20px; width: 100%; text-align: center; font-size: 11px; color: var(--text-muted); z-index: 5; pointer-events: none; }
+    
+    /* Estados de color para status-text */
+    .st-ready { color: var(--color-success); }
+    .st-wait { color: var(--color-danger); }
+    .st-action { color: #60a5fa; }
+    .st-hold { color: var(--color-warning); }
+
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -86,72 +113,153 @@
 </head>
 <body>
 
+  <!-- MENÚ PRINCIPAL DE CONFIGURACIÓN -->
   <div id="menu">
-    <h2>Configuración de Clúster</h2>
-    <label>Macro-series
-      <select id="config-series">
-        <option value="2">2 Series</option>
-        <option value="3" selected>3 Series</option>
-      </select>
-    </label>
-    <label>Repeticiones por Serie
-      <select id="config-reps">
-        <option value="1">1 Repetición</option>
-        <option value="2" selected>2 Repeticiones</option>
-        <option value="3">3 Repeticiones</option>
-        <option value="4">4 Repeticiones</option>
-        <option value="5">5 Repeticiones</option>
-        <option value="6">6 Repeticiones</option>
-      </select>
-    </label>
-    <label>Descanso Corto (entre reps)
-      <select id="config-rest">
-        <option value="15">15 Segundos</option>
-        <option value="20" selected>20 Segundos</option>
-      </select>
-    </label>
-    <button id="start-btn">Empezar Entrenamiento</button>
+    <h2>Configuración</h2>
+    
+    <div class="exercise-selector">
+      <div id="select-pullups" class="ex-btn active">Dominadas</div>
+      <div id="select-pushups" class="ex-btn">Flexiones</div>
+    </div>
+
+    <!-- Configuración Dominadas -->
+    <div id="config-pullups" class="config-group">
+      <label>Macro-series
+        <select id="pull-config-series">
+          <option value="2">2 Macro-series</option>
+          <option value="3" selected>3 Macro-series</option>
+          <option value="4">4 Macro-series</option>
+        </select>
+      </label>
+      <label>Reps acum. por Serie
+        <select id="pull-config-reps">
+          <option value="4">4 Repeticiones</option>
+          <option value="5">5 Repeticiones</option>
+          <option value="6" selected>6 Repeticiones</option>
+        </select>
+      </label>
+      <label>Descanso Corto (Cluster)
+        <select id="pull-config-rest-short">
+          <option value="15">15 Segundos</option>
+          <option value="20" selected>20 Segundos</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- Configuración Flexiones -->
+    <div id="config-pushups" class="config-group hidden">
+      <label>Series
+        <select id="push-config-series">
+          <option value="2">2 Series</option>
+          <option value="3" selected>3 Series</option>
+          <option value="4">4 Series</option>
+        </select>
+      </label>
+      <label>Repeticiones por Serie (Tiempo 3-1-1)
+        <select id="push-config-reps">
+          <option value="6">6 Repeticiones</option>
+          <option value="7">7 Repeticiones</option>
+          <option value="8" selected>8 Repeticiones</option>
+          <option value="9">9 Repeticiones</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- Botón Inicio Global -->
+    <button id="start-btn" class="action-btn">Empezar Entrenamiento</button>
   </div>
 
-  <div id="container">
-    <div id="ui">
-      <div class="stats">
-        <span id="display-series">Serie: 1/3</span>
-        <span id="display-reps">Reps: 0/2</span>
+  <!-- UI IN-WORKOUT: DOMINADAS (CÁMARA) -->
+  <div id="pullup-container">
+    <div class="workout-panel">
+      <div class="stats-row">
+        <span id="pull-display-series">Serie: 1/3</span>
+        <span id="pull-display-reps">Reps: 0/6</span>
       </div>
-      <div id="status" class="status-text">Iniciando cámara...</div>
-      <div id="timer" class="timer-text"></div>
-      <!-- Nuevo botón añadido aquí -->
-      <button id="end-session-btn">Terminar Sesión</button>
+      <div id="pull-status" class="main-status st-wait">Iniciando cámara...</div>
+      <div id="pull-timer" class="big-timer"></div>
+      <button class="terminate-btn control-btn workout-end-trigger">Terminar Sesión</button>
     </div>
     <video id="video" playsinline autoplay muted></video>
     <canvas id="canvas"></canvas>
   </div>
 
-  <div id="footer">v1.0.0</div>
+  <!-- UI IN-WORKOUT: FLEXIONES (TÁCTIL) -->
+  <div id="pushup-container">
+    <div class="workout-panel">
+      <div class="stats-row">
+        <span id="push-display-series">Serie: 1/3</span>
+        <span id="push-display-reps">Reps: 0/8</span>
+      </div>
+      <div id="push-status" class="main-status st-action">Cargando...</div>
+      <div id="push-timer" class="big-timer"></div>
+      
+      <!-- Barra deslizante tempo -->
+      <div id="pushup-slider-container">
+        <div id="pushup-slider-bar"></div>
+      </div>
+      
+      <button class="terminate-btn control-btn workout-end-trigger">Terminar Sesión</button>
+    </div>
+    
+    <!-- Área táctil para la nariz -->
+    <div id="nose-touch-area"></div>
+  </div>
+
+  <div id="footer">Gym Trainer v1.1.0</div>
 
   <script>
-    let config = { series: 3, reps: 2, shortRest: 20, longRest: 180 };
-    // Estado inicial por defecto
-    const initialWorkoutState = { currentSerie: 1, currentRep: 0, phase: 'INIT' };
-    let state = { ...initialWorkoutState }; 
+    // --- ENUMS Y CONFIGURACIÓN ---
+    const EX_TYPE = { PULLUPS: 'pullups', PUSHUPS: 'pushups' };
+    const WORKOUT_PHASE = { INIT: 'INIT', LEAVE_FRAME: 'LEAVE_FRAME', WAITING_REP: 'WAITING_REP', HOLDING_REP: 'HOLDING_REP', RESTING: 'RESTING', PUSH_UP: 'PUSH_UP', PUSH_DOWN: 'PUSH_DOWN', PUSH_HOLD_BOTTOM: 'PUSH_HOLD_BOTTOM', DONE: 'DONE' };
     
+    // Configuración global (se actualiza al inicio)
+    let activeExercise = EX_TYPE.PULLUPS;
+    let longRestTime = 180; // 3 min de descanso largo por defecto
+    let config = {}; 
+    let state = { currentSerie: 1, currentRep: 0, phase: WORKOUT_PHASE.INIT, restTimeRemaining: 0 };
+    
+    // Variables Dominadas
     let model = null;
     let facePresent = false;
     let consecutiveFrames = 0;
-    let timerInterval = null;
     let repHoldStartTime = 0;
-    let videoStream = null; // Guardar referencia al stream para apagarlo
+    let videoStream = null;
     
+    // Variables Flexiones
+    let tempoInterval = null; // Para la cuenta regresiva 3,2,1 de bajada
+    
+    // Temporizador descanso global
+    let restTimerInterval = null;
+    
+    // --- DOM ELEMENTOS ---
+    const menuEl = document.getElementById('menu');
+    const footerEl = document.getElementById('footer');
+    const startBtn = document.getElementById('start-btn');
+    
+    // Ejercicios UI contenedores
+    const pullContainer = document.getElementById('pullup-container');
+    const pushContainer = document.getElementById('pushup-container');
+    
+    // Pullup DOM
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const statusEl = document.getElementById('status');
-    const timerEl = document.getElementById('timer');
-    const displaySeries = document.getElementById('display-series');
-    const displayReps = document.getElementById('display-reps');
-    const endSessionBtn = document.getElementById('end-session-btn');
+    const pullStatusEl = document.getElementById('pull-status');
+    const pullTimerEl = document.getElementById('pull-timer');
+    const pullSeriesEl = document.getElementById('pull-display-series');
+    const pullRepsEl = document.getElementById('pull-display-reps');
+    
+    // Pushup DOM
+    const pushStatusEl = document.getElementById('push-status');
+    const pushTimerEl = document.getElementById('push-timer');
+    const pushSeriesEl = document.getElementById('push-display-series');
+    const pushRepsEl = document.getElementById('push-display-reps');
+    const pushSliderContainer = document.getElementById('pushup-slider-container');
+    const pushSliderBar = document.getElementById('pushup-slider-bar');
+    const noseTouchArea = document.getElementById('nose-touch-area');
 
+    // --- AUDIO ENGINE (WEB AUDIO API) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     function playTone(freq, type, duration, vol = 0.1) {
@@ -169,183 +277,98 @@
     }
 
     const sounds = {
-      rep: () => playTone(880, 'sine', 0.4),
-      restStart: () => playTone(440, 'square', 0.4),
-      countdown: () => playTone(1000, 'sine', 0.1, 0.05),
-      ready: () => {
-        playTone(523.25, 'sine', 0.2);
-        setTimeout(() => playTone(659.25, 'sine', 0.2), 200);
-        setTimeout(() => playTone(783.99, 'sine', 0.4), 400);
+      action: () => playTone(880, 'sine', 0.15, 0.08), // Sonido táctil flexiones
+      repComplete: () => playTone(880, 'sine', 0.4, 0.15), // Dominada completada
+      restStart: () => playTone(440, 'square', 0.4, 0.1), // Inicio descanso
+      countdownLow: () => playTone(600, 'sine', 0.05, 0.02), // Metrónomo bajada flexión
+      ready: () => { // Melodía listo
+        playTone(523.25, 'sine', 0.2, 0.1);
+        setTimeout(() => playTone(659.25, 'sine', 0.2, 0.1), 150);
+        setTimeout(() => playTone(783.99, 'sine', 0.4, 0.1), 300);
       }
     };
 
-    document.getElementById('start-btn').addEventListener('click', async () => {
-      config.series = parseInt(document.getElementById('config-series').value);
-      config.reps = parseInt(document.getElementById('config-reps').value);
-      config.shortRest = parseInt(document.getElementById('config-rest').value);
+    // --- LÓGICA MENÚ PRINCIPAL ---
+    
+    // Selector de ejercicio
+    document.getElementById('select-pullups').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      activeExercise = EX_TYPE.PULLUPS;
+      document.getElementById('select-pullups').classList.add('active');
+      document.getElementById('select-pushups').classList.remove('active');
+      document.getElementById('config-pullups').classList.remove('hidden');
+      document.getElementById('config-pushups').classList.add('hidden');
+    });
+
+    document.getElementById('select-pushups').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      activeExercise = EX_TYPE.PUSHUPS;
+      document.getElementById('select-pushups').classList.add('active');
+      document.getElementById('select-pullups').classList.remove('active');
+      document.getElementById('config-pushups').classList.remove('hidden');
+      document.getElementById('config-pullups').classList.add('hidden');
+    });
+
+    // Iniciar Entrenamiento Global
+    startBtn.addEventListener('click', async () => {
+      menuEl.style.display = 'none';
+      footerEl.style.display = 'none';
       
-      document.getElementById('menu').style.display = 'none';
-      document.getElementById('container').style.display = 'block';
+      // Reiniciar estado
+      state = { currentSerie: 1, currentRep: 0, phase: WORKOUT_PHASE.INIT, restTimeRemaining: 0 };
       
-      // Reiniciar estado antes de empezar
-      state = { ...initialWorkoutState };
-      updateDisplay();
-      
+      // Desbloquear audio en iOS
       if (audioCtx.state === 'suspended') await audioCtx.resume();
-      playTone(440, 'sine', 0.1, 0); 
+      playTone(440, 'sine', 0.01, 0); 
+
+      if (activeExercise === EX_TYPE.PULLUPS) {
+        // Cargar config dominadas
+        config = {
+          series: parseInt(document.getElementById('pull-config-series').value),
+          repsGoal: parseInt(document.getElementById('pull-config-reps').value),
+          shortRest: parseInt(document.getElementById('pull-config-rest-short').value),
+          longRest: longRestTime
+        };
+        startPullupWorkout();
+      } else {
+        // Cargar config flexiones
+        config = {
+          series: parseInt(document.getElementById('push-config-series').value),
+          repsGoal: parseInt(document.getElementById('push-config-reps').value),
+          longRest: longRestTime
+        };
+        startPushupWorkout();
+      }
+    });
+
+    // --- LÓGICA COMÚN FINALIZACIÓN ---
+    document.querySelectorAll('.workout-end-trigger').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.phase === WORKOUT_PHASE.DONE || confirm("¿Terminar sesión actual?")) {
+          endCurrentWorkout();
+        }
+      });
+    });
+
+    function endCurrentWorkout() {
+      // Limpiar temporizadores
+      if (restTimerInterval) clearInterval(restTimerInterval);
+      if (tempoInterval) clearInterval(tempoInterval);
       
-      initCamera();
-    });
-
-    // Lógica para terminar sesión
-    endSessionBtn.addEventListener('click', () => {
-      if (confirm("¿Estás seguro de que quieres terminar la sesión actual?")) {
-        terminateSession();
-      }
-    });
-
-    function terminateSession() {
-      // 1. Detener temporizadores activos
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-
-      // 2. Apagar la cámara (liberar recursos)
+      // Apagar cámara si está activa
       if (videoStream) {
         videoStream.getTracks().forEach(track => track.stop());
         videoStream = null;
         video.srcObject = null;
       }
-
-      // 3. Reiniciar estado
-      state = { ...initialWorkoutState };
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas
-
-      // 4. Cambiar UI
-      document.getElementById('container').style.display = 'none';
-      document.getElementById('menu').style.display = 'flex';
-    }
-
-    async function initCamera() {
-      try {
-        statusEl.textContent = 'Iniciando cámara...';
-        statusEl.style.color = '#eee';
-        
-        videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false
-        });
-        video.srcObject = videoStream;
-        await new Promise(resolve => video.onloadedmetadata = () => { video.play(); resolve(); });
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        statusEl.textContent = 'Cargando IA...';
-        // Solo cargar el modelo una vez si ya existe
-        if (!model) {
-          model = await blazeface.load();
-        }
-        
-        changePhase('LEAVE_FRAME');
-        detectLoop();
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'Error de cámara';
-        statusEl.style.color = '#f87171';
-        // Opción para volver al menú si hay error
-        setTimeout(terminateSession, 3000);
-      }
-    }
-
-    function updateDisplay() {
-      displaySeries.textContent = `Serie: ${state.currentSerie}/${config.series}`;
-      displayReps.textContent = `Reps: ${state.currentRep}/${config.reps}`;
-    }
-
-    function changePhase(newPhase) {
-      state.phase = newPhase;
-      timerEl.textContent = '';
-      repHoldStartTime = 0;
       
-      switch(newPhase) {
-        case 'LEAVE_FRAME':
-          statusEl.textContent = 'Sal del marco del teléfono';
-          statusEl.style.color = '#f87171';
-          break;
-        case 'WAITING_REP':
-          statusEl.textContent = 'Sube a la barra';
-          statusEl.style.color = '#4ade80';
-          break;
-        case 'POST_REP_DELAY':
-          statusEl.textContent = 'Excelente. Bajando...';
-          statusEl.style.color = '#60a5fa';
-          // Guardar timeout para poder cancelarlo si se termina la sesión
-          state.repTimeout = setTimeout(() => {
-            if (state.phase === 'POST_REP_DELAY') processRestPhase();
-          }, 3000);
-          break;
-        case 'DONE':
-          statusEl.textContent = '¡Entrenamiento Completado!';
-          statusEl.style.color = '#fbbf24';
-          sounds.ready();
-          // Cambiar texto del botón para "Volver"
-          endSessionBtn.textContent = "Volver al Menú";
-          endSessionBtn.style.background = "rgba(37, 99, 235, 0.5)"; // Tono azul
-          endSessionBtn.style.border = "1px solid rgba(37, 99, 235, 0.3)";
-          break;
-      }
-      // Asegurar que el botón tenga el texto correcto si no es DONE
-      if (newPhase !== 'DONE' && endSessionBtn.textContent !== "Terminar Sesión") {
-        endSessionBtn.textContent = "Terminar Sesión";
-        endSessionBtn.style.background = ""; // Reset a CSS
-        endSessionBtn.style.border = "";
-      }
-    }
-
-    function processRestPhase() {
-      if (state.currentRep >= config.reps) {
-        if (state.currentSerie >= config.series) {
-          changePhase('DONE');
-          return;
-        }
-        state.currentSerie++;
-        state.currentRep = 0;
-        updateDisplay();
-        startTimer(config.longRest, 'Descanso Largo');
-      } else {
-        startTimer(config.shortRest, 'Descanso');
-      }
-    }
-
-    function startTimer(seconds, label) {
-      state.phase = 'RESTING';
-      statusEl.textContent = label;
-      statusEl.style.color = '#fbbf24';
-      sounds.restStart();
+      // Ocultar contenedores
+      pullContainer.style.display = 'none';
+      pushContainer.style.display = 'none';
       
-      let timeLeft = seconds;
-      timerEl.textContent = formatTime(timeLeft);
-      
-      // Limpiar intervalo previo por seguridad
-      if (timerInterval) clearInterval(timerInterval);
-
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        timerEl.textContent = formatTime(timeLeft);
-        
-        if (timeLeft <= 5 && timeLeft > 0) {
-          sounds.countdown();
-        }
-        
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          timerInterval = null;
-          sounds.ready();
-          if (state.phase === 'RESTING') changePhase('LEAVE_FRAME');
-        }
-      }, 1000);
+      // Mostrar menú
+      menuEl.style.display = 'flex';
+      footerEl.style.display = 'block';
     }
 
     function formatTime(seconds) {
@@ -354,59 +377,328 @@
       return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`;
     }
 
+    function startRestTimer(seconds) {
+      state.phase = WORKOUT_PHASE.RESTING;
+      state.restTimeRemaining = seconds;
+      sounds.restStart();
+      
+      updateWorkoutUI();
+      
+      if (restTimerInterval) clearInterval(restTimerInterval);
+      
+      restTimerInterval = setInterval(() => {
+        state.restTimeRemaining--;
+        updateWorkoutUI();
+        
+        // Count down low sound en últimos 3 seg
+        if (state.restTimeRemaining > 0 && state.restTimeRemaining <= 3) {
+          playTone(500, 'sine', 0.05, 0.03);
+        }
+        
+        if (state.restTimeRemaining <= 0) {
+          clearInterval(restTimerInterval);
+          sounds.ready();
+          // Volver al inicio del ciclo de ejercicio
+          state.phase = WORKOUT_PHASE.INIT;
+          updateWorkoutUI();
+          if (activeExercise === EX_TYPE.PULLUPS) changePullupPhase(WORKOUT_PHASE.LEAVE_FRAME);
+          if (activeExercise === EX_TYPE.PUSHUPS) {
+             tempoFlexiones('WAIT');
+          }
+        }
+      }, 1000);
+    }
+
+    function updateWorkoutUI() {
+      if (activeExercise === EX_TYPE.PULLUPS) {
+        pullSeriesEl.textContent = `Serie: ${state.currentSerie}/${config.series}`;
+        pullRepsEl.textContent = `Reps acum: ${state.currentRep}/${config.repsGoal}`;
+        
+        if (state.phase === WORKOUT_PHASE.RESTING) {
+          pullStatusEl.textContent = state.currentRep === 0 ? "Descanso Largo" : "Descanso Corto (Cluster)";
+          pullStatusEl.className = "main-status st-hold";
+          pullTimerEl.textContent = formatTime(state.restTimeRemaining);
+        } else {
+          pullTimerEl.textContent = '';
+        }
+      } else {
+        pushSeriesEl.textContent = `Serie: ${state.currentSerie}/${config.series}`;
+        pushRepsEl.textContent = `Reps: ${state.currentRep}/${config.repsGoal}`;
+        
+        if (state.phase === WORKOUT_PHASE.RESTING) {
+          pushStatusEl.textContent = "Descanso Largo";
+          pushStatusEl.className = "main-status st-hold";
+          pushTimerEl.textContent = formatTime(state.restTimeRemaining);
+          pushSliderContainer.style.display = 'none';
+        } else {
+          pushTimerEl.textContent = '';
+        }
+      }
+    }
+
+    // --- LÓGICA ESPECÍFICA: DOMINADAS (CÁMARA) ---
+    async function startPullupWorkout() {
+      pullContainer.style.display = 'block';
+      pullStatusEl.textContent = 'Iniciando cámara...';
+      pullStatusEl.className = "main-status st-hold";
+      updateWorkoutUI();
+      
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        video.srcObject = videoStream;
+        await new Promise(resolve => video.onloadedmetadata = () => { video.play(); resolve(); });
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        pullStatusEl.textContent = 'Cargando IA...';
+        if (!model) model = await blazeface.load();
+        
+        changePullupPhase(WORKOUT_PHASE.LEAVE_FRAME);
+        detectLoop();
+      } catch (err) {
+        console.error(err);
+        pullStatusEl.textContent = 'Error cámara';
+        pullStatusEl.className = "main-status st-wait";
+        setTimeout(endCurrentWorkout, 3000);
+      }
+    }
+
+    function changePullupPhase(newPhase) {
+      state.phase = newPhase;
+      repHoldStartTime = 0;
+      updateWorkoutUI();
+      
+      switch(newPhase) {
+        case WORKOUT_PHASE.LEAVE_FRAME:
+          pullStatusEl.textContent = 'Sal del marco de cámara';
+          pullStatusEl.className = "main-status st-wait";
+          break;
+        case WORKOUT_PHASE.WAITING_REP:
+          pullStatusEl.textContent = '¡Sube a la barra!';
+          pullStatusEl.className = "main-status st-action";
+          break;
+        case WORKOUT_PHASE.DONE:
+          pullStatusEl.textContent = '¡Completo!';
+          pullStatusEl.className = "main-status st-ready";
+          sounds.ready();
+          break;
+      }
+    }
+
     async function detectLoop() {
-      // Detener bucle si el contenedor no está visible (sesión terminada)
-      if (!model || state.phase === 'DONE' || document.getElementById('container').style.display === 'none') {
-        repHoldStartTime = 0; // Reset por seguridad
+      if (!model || activeExercise !== EX_TYPE.PULLUPS || state.phase === WORKOUT_PHASE.DONE || state.phase === WORKOUT_PHASE.RESTING) {
+        repHoldStartTime = 0;
         return;
       }
 
       const predictions = await model.estimateFaces(video, false);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       const isFaceDetected = predictions.length > 0;
 
       if (isFaceDetected) {
         consecutiveFrames = 0;
-        if (!facePresent) facePresent = true;
-
-        ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 3;
+        facePresent = true;
+        // Dibujar bounding box (opcional, feedback visual)
+        ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 2;
         predictions.forEach(p => {
           ctx.strokeRect(p.topLeft[0], p.topLeft[1], p.bottomRight[0] - p.topLeft[0], p.bottomRight[1] - p.topLeft[1]);
         });
 
-        if (state.phase === 'WAITING_REP') {
+        if (state.phase === WORKOUT_PHASE.WAITING_REP) {
           if (repHoldStartTime === 0) {
             repHoldStartTime = Date.now();
-            statusEl.textContent = 'Mantén la posición...';
-            statusEl.style.color = '#fbbf24';
+            pullStatusEl.textContent = 'Mantén arriba...';
+            pullStatusEl.className = "main-status st-hold";
           } else if (Date.now() - repHoldStartTime >= 1000) {
+            // Repetición válida detectada
             state.currentRep++;
-            updateDisplay();
-            sounds.rep();
-            changePhase('POST_REP_DELAY');
+            updateWorkoutUI();
+            sounds.repComplete();
+            
+            pullStatusEl.textContent = '¡Bien! Baja lento...';
+            pullStatusEl.className = "main-status st-ready";
+            repHoldStartTime = 0; // Reset hold tracker
+            
+            // Lógica de descanso post-rep
+            state.phase = WORKOUT_PHASE.HOLDING_REP; // Estado transicional para esperar bajada
+            
+            setTimeout(() => {
+              if (activeExercise !== EX_TYPE.PULLUPS || state.phase === WORKOUT_PHASE.DONE) return;
+              
+              if (state.currentRep >= config.repsGoal) {
+                // Fin de macro-serie
+                if (state.currentSerie >= config.series) {
+                  changePullupPhase(WORKOUT_PHASE.DONE);
+                } else {
+                  state.currentSerie++;
+                  state.currentRep = 0;
+                  startRestTimer(config.longRest);
+                }
+              } else {
+                // Descanso cluster corto
+                startRestTimer(config.shortRest);
+              }
+            }, 3000); // Dar 3 seg para bajar antes de iniciar descanso
           }
         }
-
       } else {
+        // No hay rostro
         consecutiveFrames++;
-        if (consecutiveFrames >= 5 && facePresent) {
-          facePresent = false;
-        }
-
-        if (state.phase === 'WAITING_REP' && repHoldStartTime !== 0) {
+        if (consecutiveFrames >= 5) { facePresent = false; repHoldStartTime = 0;}
+        
+        if (state.phase === WORKOUT_PHASE.WAITING_REP && repHoldStartTime !== 0) {
           repHoldStartTime = 0;
-          statusEl.textContent = 'Sube a la barra';
-          statusEl.style.color = '#4ade80';
+          pullStatusEl.textContent = '¡Sube a la barra!';
+          pullStatusEl.className = "main-status st-action";
         }
-
-        if (!facePresent && state.phase === 'LEAVE_FRAME') {
-          changePhase('WAITING_REP');
+        if (!facePresent && state.phase === WORKOUT_PHASE.LEAVE_FRAME) {
+          changePullupPhase(WORKOUT_PHASE.WAITING_REP);
         }
       }
-
       requestAnimationFrame(detectLoop);
+    }
+
+    // --- LÓGICA ESPECÍFICA: FLEXIONES (TÁCTIL) ---
+    function startPushupWorkout() {
+      pushContainer.style.display = 'flex';
+      pushContainer.style.background = '#050505'; // Fondo oscuro para tacto nariz
+      pushSliderContainer.style.display = 'none';
+      updateWorkoutUI();
+      // Empezar ciclo: Esperando primer toque abajo
+      tempoFlexiones('WAIT');
+    }
+
+    // Manejo de eventos táctiles (touchstart)
+    noseTouchArea.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // Prevenir zoom/scroll
+      if (state.phase === WORKOUT_PHASE.RESTING || state.phase === WORKOUT_PHASE.DONE) return;
+      handleNoseTouch();
+    });
+
+    function handleNoseTouch() {
+      // Sonido de feedback táctil
+      sounds.action();
+      
+      switch(state.phase) {
+        case WORKOUT_PHASE.INIT: // Esperando inicio abajo
+          state.currentRep = 0;
+          tempoFlexiones('UP'); // Empieza primera rep (subida explosiva)
+          break;
+        case WORKOUT_PHASE.PUSH_HOLD_BOTTOM: // Toque correcto abajo
+          if (state.currentRep >= config.repsGoal) {
+            // Fin de serie
+            tempoFlexiones('SET_DONE');
+          } else {
+            // Siguiente rep
+            tempoFlexiones('UP');
+          }
+          break;
+        // Ignorar toques en fases UP o DOWN
+      }
+    }
+
+    // Máquina de estados de tempo de flexiones (3-1-1)
+    function tempoFlexiones(step) {
+      if (restTimerInterval) clearInterval(restTimerInterval);
+      if (tempoInterval) clearInterval(tempoInterval);
+      pushSliderContainer.style.display = 'none';
+      
+      updateWorkoutUI();
+
+      switch(step) {
+        case 'WAIT': // Estado inicial abajo
+          state.phase = WORKOUT_PHASE.INIT;
+          pushStatusEl.textContent = 'Ponte en posición ABAJO';
+          pushStatusEl.className = "main-status st-ready";
+          pushTimerEl.textContent = 'Toca con Nariz';
+          break;
+          
+        case 'UP': // Subida Explosiva (1s)
+          state.currentRep++;
+          state.phase = WORKOUT_PHASE.PUSH_UP;
+          updateWorkoutUI();
+          
+          pushStatusEl.textContent = '¡SUBE EXPLOSIVO!';
+          pushStatusEl.className = "main-status st-action";
+          pushTimerEl.textContent = '1s';
+          
+          // Visual barra: lleno a vacío en 1s
+          pushSliderContainer.style.display = 'block';
+          pushSliderBar.style.transition = 'width 1s linear';
+          pushSliderBar.style.width = '100%'; 
+          
+          // Forzar reflow para animación
+          pushSliderBar.offsetHeight; 
+          pushSliderBar.style.width = '0%';
+          
+          tempoInterval = setTimeout(() => tempoFlexiones('DOWN'), 1000);
+          break;
+          
+        case 'DOWN': // Bajada Controlada (3s)
+          state.phase = WORKOUT_PHASE.PUSH_DOWN;
+          pushStatusEl.textContent = 'Baja lento';
+          pushStatusEl.className = "main-status st-wait";
+          
+          // Visual barra: vacío a lleno en 3s
+          pushSliderContainer.style.display = 'block';
+          pushSliderBar.style.transition = 'width 3s linear';
+          pushSliderBar.style.width = '100%';
+          
+          let cdBajada = 3;
+          pushTimerEl.textContent = `${cdBajada}s`;
+          
+          // Cuenta regresiva y metrónomo
+          tempoInterval = setInterval(() => {
+            cdBajada--;
+            if (cdBajada > 0) {
+              pushTimerEl.textContent = `${cdBajada}s`;
+              sounds.countdownLow(); // Clic metrónomo
+            } else {
+              clearInterval(tempoInterval);
+              tempoFlexiones('HOLD');
+            }
+          }, 1000);
+          break;
+          
+        case 'HOLD': // Pausa abajo esperando toque (1s)
+          state.phase = WORKOUT_PHASE.PUSH_HOLD_BOTTOM;
+          pushStatusEl.textContent = 'MANTÉN 1s ABAJO';
+          pushStatusEl.className = "main-status st-hold";
+          pushTimerEl.textContent = 'TOCA PANTALLA';
+          // Sonido de fondo de tiempo de pausa (más grave y continuo)
+          playTone(200, 'triangle', 0.8, 0.05);
+          
+          // Barra estática llena
+          pushSliderContainer.style.display = 'block';
+          pushSliderBar.style.transition = 'none';
+          pushSliderBar.style.width = '100%';
+          
+          // Si no toca en 3s, recordatorio visual
+          tempoInterval = setTimeout(() => {
+            if(state.phase === WORKOUT_PHASE.PUSH_HOLD_BOTTOM) {
+               pushStatusEl.className = "main-status st-wait st-pulse";
+            }
+          }, 3000);
+          break;
+          
+        case 'SET_DONE': // Fin de serie
+          sounds.ready();
+          if (state.currentSerie >= config.series) {
+            // Fin entrenamiento
+            state.phase = WORKOUT_PHASE.DONE;
+            updateWorkoutUI();
+            pushStatusEl.textContent = '¡Completo!';
+            pushStatusEl.className = "main-status st-ready";
+            pushTimerEl.textContent = '';
+            // Botón terminar sesión cambia texto (handled via class in DOM)
+          } else {
+            state.currentSerie++;
+            startRestTimer(config.longRest);
+          }
+          break;
+      }
     }
   </script>
 </body>
