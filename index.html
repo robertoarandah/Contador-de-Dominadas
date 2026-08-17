@@ -34,7 +34,7 @@
     
     .stats { display: flex; justify-content: space-between; font-size: 16px; font-weight: 600; color: #eee; }
     .status-text { font-size: 20px; color: #4ade80; text-align: center; font-weight: bold; }
-    .timer-text { font-size: 40px; color: #fbbf24; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+    .timer-text { font-size: 40px; color: #fbbf24; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; margin: -10px 0;}
     
     #menu {
       background: rgba(30, 30, 30, 0.6); 
@@ -62,6 +62,18 @@
       font-weight: 600; cursor: pointer; margin-top: 12px; 
     }
     button:active { background: rgba(29, 78, 216, 0.9); }
+
+    /* Botón de terminar sesión específico */
+    #end-session-btn {
+      background: rgba(239, 68, 68, 0.5);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 10px;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    #end-session-btn:active {
+      background: rgba(185, 28, 28, 0.7);
+    }
 
     #footer {
       position: absolute; bottom: 20px; width: 100%; text-align: center;
@@ -109,6 +121,8 @@
       </div>
       <div id="status" class="status-text">Iniciando cámara...</div>
       <div id="timer" class="timer-text"></div>
+      <!-- Nuevo botón añadido aquí -->
+      <button id="end-session-btn">Terminar Sesión</button>
     </div>
     <video id="video" playsinline autoplay muted></video>
     <canvas id="canvas"></canvas>
@@ -118,13 +132,16 @@
 
   <script>
     let config = { series: 3, reps: 2, shortRest: 20, longRest: 180 };
-    let state = { currentSerie: 1, currentRep: 0, phase: 'INIT' }; 
+    // Estado inicial por defecto
+    const initialWorkoutState = { currentSerie: 1, currentRep: 0, phase: 'INIT' };
+    let state = { ...initialWorkoutState }; 
     
     let model = null;
     let facePresent = false;
     let consecutiveFrames = 0;
     let timerInterval = null;
     let repHoldStartTime = 0;
+    let videoStream = null; // Guardar referencia al stream para apagarlo
     
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -133,6 +150,7 @@
     const timerEl = document.getElementById('timer');
     const displaySeries = document.getElementById('display-series');
     const displayReps = document.getElementById('display-reps');
+    const endSessionBtn = document.getElementById('end-session-btn');
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
@@ -169,6 +187,8 @@
       document.getElementById('menu').style.display = 'none';
       document.getElementById('container').style.display = 'block';
       
+      // Reiniciar estado antes de empezar
+      state = { ...initialWorkoutState };
       updateDisplay();
       
       if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -177,25 +197,65 @@
       initCamera();
     });
 
+    // Lógica para terminar sesión
+    endSessionBtn.addEventListener('click', () => {
+      if (confirm("¿Estás seguro de que quieres terminar la sesión actual?")) {
+        terminateSession();
+      }
+    });
+
+    function terminateSession() {
+      // 1. Detener temporizadores activos
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+
+      // 2. Apagar la cámara (liberar recursos)
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+        video.srcObject = null;
+      }
+
+      // 3. Reiniciar estado
+      state = { ...initialWorkoutState };
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas
+
+      // 4. Cambiar UI
+      document.getElementById('container').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+    }
+
     async function initCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        statusEl.textContent = 'Iniciando cámara...';
+        statusEl.style.color = '#eee';
+        
+        videoStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
           audio: false
         });
-        video.srcObject = stream;
+        video.srcObject = videoStream;
         await new Promise(resolve => video.onloadedmetadata = () => { video.play(); resolve(); });
         
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
         statusEl.textContent = 'Cargando IA...';
-        model = await blazeface.load();
+        // Solo cargar el modelo una vez si ya existe
+        if (!model) {
+          model = await blazeface.load();
+        }
         
         changePhase('LEAVE_FRAME');
         detectLoop();
       } catch (err) {
+        console.error(err);
         statusEl.textContent = 'Error de cámara';
+        statusEl.style.color = '#f87171';
+        // Opción para volver al menú si hay error
+        setTimeout(terminateSession, 3000);
       }
     }
 
@@ -221,13 +281,26 @@
         case 'POST_REP_DELAY':
           statusEl.textContent = 'Excelente. Bajando...';
           statusEl.style.color = '#60a5fa';
-          setTimeout(() => processRestPhase(), 3000);
+          // Guardar timeout para poder cancelarlo si se termina la sesión
+          state.repTimeout = setTimeout(() => {
+            if (state.phase === 'POST_REP_DELAY') processRestPhase();
+          }, 3000);
           break;
         case 'DONE':
           statusEl.textContent = '¡Entrenamiento Completado!';
           statusEl.style.color = '#fbbf24';
           sounds.ready();
+          // Cambiar texto del botón para "Volver"
+          endSessionBtn.textContent = "Volver al Menú";
+          endSessionBtn.style.background = "rgba(37, 99, 235, 0.5)"; // Tono azul
+          endSessionBtn.style.border = "1px solid rgba(37, 99, 235, 0.3)";
           break;
+      }
+      // Asegurar que el botón tenga el texto correcto si no es DONE
+      if (newPhase !== 'DONE' && endSessionBtn.textContent !== "Terminar Sesión") {
+        endSessionBtn.textContent = "Terminar Sesión";
+        endSessionBtn.style.background = ""; // Reset a CSS
+        endSessionBtn.style.border = "";
       }
     }
 
@@ -255,6 +328,9 @@
       let timeLeft = seconds;
       timerEl.textContent = formatTime(timeLeft);
       
+      // Limpiar intervalo previo por seguridad
+      if (timerInterval) clearInterval(timerInterval);
+
       timerInterval = setInterval(() => {
         timeLeft--;
         timerEl.textContent = formatTime(timeLeft);
@@ -265,8 +341,9 @@
         
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
+          timerInterval = null;
           sounds.ready();
-          changePhase('LEAVE_FRAME');
+          if (state.phase === 'RESTING') changePhase('LEAVE_FRAME');
         }
       }, 1000);
     }
@@ -278,7 +355,11 @@
     }
 
     async function detectLoop() {
-      if (!model || state.phase === 'DONE') return;
+      // Detener bucle si el contenedor no está visible (sesión terminada)
+      if (!model || state.phase === 'DONE' || document.getElementById('container').style.display === 'none') {
+        repHoldStartTime = 0; // Reset por seguridad
+        return;
+      }
 
       const predictions = await model.estimateFaces(video, false);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
