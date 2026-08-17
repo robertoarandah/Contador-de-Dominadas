@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Entrenador Dominadas Clúster</title>
+  <style>
+    /* Reset y base */
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      background: #000; 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      overflow: hidden; 
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Capa de cámara */
+    video, canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* Efecto espejo */
+    }
+
+    /* Menú Inicial */
+    #menu {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #111;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    #menu h1 {
+      font-size: 28px;
+      text-align: center;
+      margin-bottom: 30px;
+      color: #fff;
+    }
+
+    .field {
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #aaa;
+    }
+
+    .field select {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 10px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #444;
+      appearance: none;
+    }
+
+    .btn {
+      width: 100%;
+      max-width: 320px;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #fff;
+      background: #2563eb;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .btn:active { background: #1d4ed8; }
+    .btn-danger { background: #ef4444; margin-bottom: 30px;}
+    .btn-danger:active { background: #b91c1c; }
+
+    /* UI del Entrenamiento */
+    #workout-ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      z-index: 20;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+    }
+
+    .stat {
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .stat span { color: #4ade80; }
+
+    .center-display {
+      text-align: center;
+      background: rgba(0,0,0,0.6);
+      padding: 30px 20px;
+      backdrop-filter: blur(8px);
+      width: 100%;
+    }
+
+    #ui-state-text {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    #ui-timer {
+      font-size: 90px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #4ade80;
+      text-shadow: 0 4px 8px rgba(0,0,0,0.8);
+      line-height: 1;
+    }
+
+    .footer {
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+
+  <!-- TensorFlow.js y BlazeFace -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+</head>
+<body>
+
+  <div id="app">
+    <!-- Menú -->
+    <div id="menu">
+      <h1>Dominadas en Clúster</h1>
+      
+      <div class="field">
+        <label>Macro-series</label>
+        <select id="input-series">
+          <option value="2">2 Series</option>
+          <option value="3">3 Series</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Repeticiones por serie</label>
+        <select id="input-reps">
+          <option value="5">5 Repeticiones</option>
+          <option value="6" selected>6 Repeticiones</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Descanso entre reps</label>
+        <select id="input-rest">
+          <option value="15">15 Segundos</option>
+          <option value="20">20 Segundos</option>
+        </select>
+      </div>
+      
+      <button id="start-btn" class="btn">Empezar Entrenamiento</button>
+    </div>
+
+    <!-- UI del Entrenamiento -->
+    <div id="workout-ui">
+      <div class="header">
+        <div class="stat">Serie: <span id="ui-serie">1 / 2</span></div>
+        <div class="stat">Rep: <span id="ui-rep">0 / 6</span></div>
+      </div>
+      
+      <div class="center-display">
+        <div id="ui-state-text">Cargando IA...</div>
+        <div id="ui-timer"></div>
+      </div>
+      
+      <div class="footer">
+        <button id="cancel-btn" class="btn btn-danger">Terminar</button>
+      </div>
+    </div>
+
+    <!-- Cámara -->
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <script>
+    // Referencias DOM
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    const uiSerie = document.getElementById('ui-serie');
+    const uiRep = document.getElementById('ui-rep');
+    const uiStateText = document.getElementById('ui-state-text');
+    const uiTimer = document.getElementById('ui-timer');
+    
+    const menuDiv = document.getElementById('menu');
+    const workoutUiDiv = document.getElementById('workout-ui');
+
+    // Máquina de estados
+    const STATES = {
+      MENU: 'MENU',
+      LOADING: 'LOADING',
+      WAIT_LEAVE: 'WAIT_LEAVE', // Esperando que el usuario salga del marco
+      WAIT_FACE: 'WAIT_FACE',   // Esperando que el usuario regrese
+      PREP_REST: 'PREP_REST',   // Conteo de 3s
+      MICRO_REST: 'MICRO_REST', // Descanso de 15s/20s
+      MACRO_REST: 'MACRO_REST', // Descanso de 3 minutos
+      DONE: 'DONE'
+    };
+
+    let currentState = STATES.MENU;
+    let isWorkoutRunning = false;
+    let model = null;
+    let audioCtx = null;
+
+    // Tiempos y contadores
+    let stateStartTime = 0;
+    let timerDuration = 0;
+    
+    let faceMissingFrames = 0;
+    let facePresentFrames = 0;
+
+    let config = { series: 2, reps: 6, microRest: 15, macroRest: 180 };
+    let currentSerie = 1;
+    let currentRep = 0;
+
+    // ==========================================
+    // SÍNTESIS DE AUDIO (Web Audio API)
+    // ==========================================
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playFaceDetected() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880; // Tono agudo
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    function playTimerStart() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 600; // Tono medio
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    function playTimerEnd() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      // Melodía de 3 notas indicando éxito/final
+      const freqs = [440, 554.37, 659.25]; 
+      freqs.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const startTime = now + i * 0.2;
+        const duration = i === 2 ? 0.4 : 0.2; // Última nota dura más
+        gain.gain.setValueAtTime(0.2, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(startTime); osc.stop(startTime + duration);
+      });
+    }
+
+    // ==========================================
+    // LÓGICA DE UI Y ESTADOS
+    // ==========================================
+    function updateUI(text, timerVal) {
+      uiSerie.textContent = `${currentSerie} / ${config.series}`;
+      uiRep.textContent = `${currentRep} / ${config.reps}`;
+      uiStateText.textContent = text;
+      uiTimer.textContent = timerVal;
+    }
+
+    function formatTime(secs) {
+      if (secs < 60) return secs;
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function changeState(newState, duration = 0) {
+      currentState = newState;
+      stateStartTime = Date.now();
+      timerDuration = duration * 1000;
+      
+      // Acciones de entrada por estado
+      if (newState === STATES.PREP_REST) {
+        playFaceDetected();
+      } else if (newState === STATES.MICRO_REST || newState === STATES.MACRO_REST) {
+        playTimerStart();
+      }
+    }
+
+    // ==========================================
+    // BUCLE PRINCIPAL E INTELIGENCIA ARTIFICIAL
+    // ==========================================
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        
+        video.srcObject = stream;
+        await new Promise(resolve => {
+          video.onloadedmetadata = () => { video.play(); resolve(); };
+        });
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        if (!model) {
+          model = await blazeface.load();
+        }
+        
+        isWorkoutRunning = true;
+        // Iniciar esperando que el usuario se aleje de la pantalla para su primer rep
+        changeState(STATES.WAIT_LEAVE); 
+        detectLoop();
+      } catch (err) {
+        updateUI("Error de cámara", "⚠️");
+        console.error(err);
+      }
+    }
+
+    async function detectLoop() {
+      if (!isWorkoutRunning || !model || video.readyState !== 4) return;
+
+      const predictions = await model.estimateFaces(video, false);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Dibujar caja para feedback visual
+      if (predictions.length > 0 && currentState !== STATES.DONE) {
+        predictions.forEach(prediction => {
+          const start = prediction.topLeft;
+          const end = prediction.bottomRight;
+          const size = [end[0] - start[0], end[1] - start[1]];
+          
+          ctx.strokeStyle = (currentState === STATES.WAIT_FACE) ? '#4ade80' : '#888';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(start[0], start[1], size[0], size[1]);
+        });
+      }
+
+      // Conteo de cuadros para robustez (Histéresis)
+      if (predictions.length > 0) {
+        faceMissingFrames = 0;
+        facePresentFrames++;
+      } else {
+        facePresentFrames = 0;
+        faceMissingFrames++;
+      }
+
+      const isFacePresent = facePresentFrames >= 2;
+      const isFaceMissing = faceMissingFrames >= 5;
+
+      // Cálculos de tiempo
+      const now = Date.now();
+      const elapsed = now - stateStartTime;
+      const remaining = Math.max(0, timerDuration - elapsed);
+      const remainingSecs = Math.ceil(remaining / 1000);
+
+      // Máquina de estados
+      switch (currentState) {
+        case STATES.WAIT_LEAVE:
+          updateUI("A la barra. Sal del marco", "");
+          if (isFaceMissing) changeState(STATES.WAIT_FACE);
+          break;
+          
+        case STATES.WAIT_FACE:
+          updateUI("Haz tu repetición y vuelve", "");
+          if (isFacePresent) changeState(STATES.PREP_REST, 3);
+          break;
+          
+        case STATES.PREP_REST:
+          updateUI("Preparando...", remainingSecs);
+          if (remaining <= 0) {
+            currentRep++;
+            // Lógica Clúster: Si completaste las reps, toca descanso largo.
+            if (currentRep >= config.reps) {
+              changeState(STATES.MACRO_REST, config.macroRest);
+            } else {
+              changeState(STATES.MICRO_REST, config.microRest);
+            }
+          }
+          break;
+          
+        case STATES.MICRO_REST:
+          updateUI("Descanso Corto", remainingSecs);
+          if (remaining <= 0) {
+            playTimerEnd();
+            changeState(STATES.WAIT_LEAVE);
+          }
+          break;
+          
+        case STATES.MACRO_REST:
+          updateUI("Descanso Largo", formatTime(remainingSecs));
+          if (remaining <= 0) {
+            playTimerEnd();
+            currentSerie++;
+            currentRep = 0;
+            if (currentSerie > config.series) {
+              changeState(STATES.DONE);
+            } else {
+              changeState(STATES.WAIT_LEAVE);
+            }
+          }
+          break;
+          
+        case STATES.DONE:
+          updateUI("¡Entrenamiento Completado!", "🏆");
+          break;
+      }
+
+      requestAnimationFrame(detectLoop);
+    }
+
+    // ==========================================
+    // EVENTOS DE BOTONES
+    // ==========================================
+    document.getElementById('start-btn').addEventListener('click', () => {
+      initAudio(); // Requerido por iOS para habilitar el audio
+      
+      // Leer configuración
+      config.series = parseInt(document.getElementById('input-series').value);
+      config.reps = parseInt(document.getElementById('input-reps').value);
+      config.microRest = parseInt(document.getElementById('input-rest').value);
+      config.macroRest = 180; // 3 minutos
+      
+      currentSerie = 1;
+      currentRep = 0;
+      
+      menuDiv.style.display = 'none';
+      workoutUiDiv.style.display = 'flex';
+      changeState(STATES.LOADING);
+      updateUI("Cargando IA...", "");
+      
+      initCamera();
+    });
+
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      isWorkoutRunning = false;
+      
+      // Apagar cámara para ahorrar batería
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+      
+      menuDiv.style.display = 'flex';
+      workoutUiDiv.style.display = 'none';
+      currentState = STATES.MENU;
+    });
+
+  </script>
+</body>
+</html>
